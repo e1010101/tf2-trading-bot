@@ -8,14 +8,15 @@ import { MockSource } from './market/mock.ts';
 
 const cfg = loadConfig();
 
-const market =
-  cfg.dataSource === 'backpacktf'
-    ? new BackpackTfSource(cfg.bptfToken)
-    : new MockSource(fileURLToPath(new URL('../fixtures/market.json', import.meta.url)));
 
 const executor = cfg.dryRun ? new PaperExecutor(cfg.paperStart) : new SteamExecutor();
 
 const log = (msg: string) => console.log(`${new Date().toISOString()} ${msg}`);
+
+const market =
+  cfg.dataSource === 'backpacktf'
+    ? new BackpackTfSource(cfg.bptfToken, log)
+    : new MockSource(fileURLToPath(new URL('../fixtures/market.json', import.meta.url)));
 log(`source=${cfg.dataSource} dryRun=${cfg.dryRun} watchlist=${cfg.watchlist.join(',')}`);
 
 const bot = new Bot(cfg, market, executor, log);

@@ -64,3 +64,13 @@ test('bot tick grows paper backpack value and respects affordability', async () 
   assert.deepEqual(report.executed.map((o) => o.sku), ['x']);
   assert.equal(report.valueScrap, 500 + 103);
 });
+
+test('describeBook explains why listings were dropped', async () => {
+  const { describeBook } = await import('../src/strategy/arbitrage.ts');
+  const book = [
+    l(KEY_SKU, 'sell', 'a', 510),
+    l(KEY_SKU, 'sell', 'b', 505, { automatic: false }),
+    l(KEY_SKU, 'buy', 'd', 520, { updatedAt: NOW - 601 }),
+  ];
+  assert.equal(describeBook(book, filter), '3 listings, tradable buy=0 sell=1, dropped notAutomatic=1 stale=1');
+});

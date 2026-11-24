@@ -10,16 +10,34 @@ export interface ListingFilter {
   ownSteamId?: string;
 }
 
+export type RejectReason = 'notAutomatic' | 'own' | 'stale' | 'keyPricedKey';
+
+/** Why a listing can't be traded against right now, or null if it can. */
+export function rejectReason(l: Listing, f: ListingFilter): RejectReason | null {
+  if (!l.automatic) return 'notAutomatic';
+  if (l.steamId === f.ownSteamId) return 'own';
+  if (f.now - l.updatedAt > f.maxListingAgeS) return 'stale';
+  // Keys are only ever priced in metal; a key listing asking for keys is junk.
+  if (l.sku === KEY_SKU && l.price.keys > 0) return 'keyPricedKey';
+  return null;
+}
+
 /** Listings we can actually trade against right now. */
 export function tradable(listings: Listing[], f: ListingFilter): Listing[] {
-  return listings.filter(
-    (l) =>
-      l.automatic &&
-      l.steamId !== f.ownSteamId &&
-      f.now - l.updatedAt <= f.maxListingAgeS &&
-      // Keys are only ever priced in metal; a key listing asking for keys is junk.
-      !(l.sku === KEY_SKU && l.price.keys > 0),
-  );
+  return listings.filter((l) => rejectReason(l, f) === null);
+}
+
+/** One-line summary of a book: how many listings per side, and why the rest were dropped. */
+export function describeBook(listings: Listing[], f: ListingFilter): string {
+  const counts = { buy: 0, sell: 0 };
+  const rejected: Partial<Record<RejectReason, number>> = {};
+  for (const l of listings) {
+    const r = rejectReason(l, f);
+    if (r) rejected[r] = (rejected[r] ?? 0) + 1;
+    else counts[l.intent]++;
+  }
+  const drops = Object.entries(rejected).map(([k, n]) => `${k}=${n}`).join(' ');
+  return `${listings.length} listings, tradable buy=${counts.buy} sell=${counts.sell}` + (drops ? `, dropped ${drops}` : '');
 }
 
 /** Derive the key<->metal rate from the key order book. Null if either side is empty. */

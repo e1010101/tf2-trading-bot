@@ -1,54 +1,94 @@
 import { refToScrap } from '../currency.ts';
+import { KEY_SKU } from '../types.ts';
 import type { Listing, MarketDataSource } from '../types.ts';
 
 /**
  * backpack.tf classifieds snapshot client.
  *
- * NOTE: written from the documented snapshot shape but not yet exercised against the live
- * API. Check the endpoint, the `sku` parameter (the API may want the item name instead)
- * and rate limits against https://backpack.tf/api/index.html before relying on it.
+ * The snapshot endpoint's `sku` parameter takes the item's market name, not a
+ * `defindex;quality` SKU, so known SKUs are translated before the request. Unknown
+ * SKUs are sent unchanged; add them to SKU_NAMES once you know their names.
  */
+export const SKU_NAMES: Record<string, string> = {
+  [KEY_SKU]: 'Mann Co. Supply Crate Key',
+};
 
 interface SnapshotListing {
   steamid: string;
-  intent: 'buy' | 'sell';
+  /** Strings on current responses; 0 = buy, 1 = sell on older ones. */
+  intent: 'buy' | 'sell' | 0 | 1;
   timestamp: number;
   bump?: number;
-  currencies: { metal?: number; keys?: number };
-  userAgent?: { client: string; lastPulse: number };
+  currencies?: { metal?: number; keys?: number };
+  userAgent?: { client?: string; lastPulse?: number };
 }
 
 interface SnapshotResponse {
   listings?: SnapshotListing[];
 }
 
+function parseIntent(v: SnapshotListing['intent']): 'buy' | 'sell' | null {
+  if (v === 'buy' || v === 0) return 'buy';
+  if (v === 'sell' || v === 1) return 'sell';
+  return null;
+}
+
 export class BackpackTfSource implements MarketDataSource {
   readonly #token: string;
   readonly #baseUrl: string;
+  readonly #log: (msg: string) => void;
 
-  constructor(token: string, baseUrl = 'https://backpack.tf/api') {
+  constructor(token: string, log: (msg: string) => void = () => {}, baseUrl = 'https://backpack.tf/api') {
     if (!token) throw new Error('BPTF_TOKEN is required for DATA_SOURCE=backpacktf');
     this.#token = token;
+    this.#log = log;
     this.#baseUrl = baseUrl;
   }
 
   async getListings(sku: string): Promise<Listing[]> {
+    const name = SKU_NAMES[sku] ?? sku;
     const url = new URL(`${this.#baseUrl}/classifieds/listings/snapshot`);
     url.searchParams.set('appid', '440');
-    url.searchParams.set('sku', sku);
+    url.searchParams.set('sku', name);
     url.searchParams.set('token', this.#token);
 
     const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) throw new Error(`backpack.tf snapshot ${sku}: HTTP ${res.status}`);
-    const body = (await res.json()) as SnapshotResponse;
+    const text = await res.text();
+    if (!res.ok) throw new Error(`backpack.tf snapshot "${name}": HTTP ${res.status} ${text.slice(0, 200)}`);
 
-    return (body.listings ?? []).map((l) => ({
-      sku,
-      intent: l.intent,
-      steamId: l.steamid,
-      price: { keys: l.currencies.keys ?? 0, scrap: refToScrap(l.currencies.metal ?? 0) },
-      automatic: l.userAgent !== undefined,
-      updatedAt: l.bump ?? l.timestamp,
-    }));
+    let body: SnapshotResponse;
+    try {
+      body = JSON.parse(text) as SnapshotResponse;
+    } catch {
+      throw new Error(`backpack.tf snapshot "${name}": non-JSON response ${text.slice(0, 200)}`);
+    }
+    if (!Array.isArray(body.listings)) {
+      throw new Error(
+        `backpack.tf snapshot "${name}": no listings array; top-level keys: ${Object.keys(body).join(', ') || '(none)'}`,
+      );
+    }
+
+    const listings: Listing[] = [];
+    let badIntent = 0;
+    for (const l of body.listings) {
+      const intent = parseIntent(l.intent);
+      if (!intent) {
+        badIntent++;
+        continue;
+      }
+      listings.push({
+        sku,
+        intent,
+        steamId: l.steamid,
+        price: { keys: l.currencies?.keys ?? 0, scrap: refToScrap(l.currencies?.metal ?? 0) },
+        automatic: l.userAgent !== undefined,
+        updatedAt: l.bump ?? l.timestamp,
+      });
+    }
+    this.#log(
+      `backpack.tf "${name}": ${body.listings.length} listings returned` +
+        (badIntent ? `, ${badIntent} with unrecognised intent dropped` : ''),
+    );
+    return listings;
   }
 }

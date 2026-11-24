@@ -1,7 +1,7 @@
 import type { Config } from './config.ts';
 import { canAfford, formatPrice, formatRef, holdingsValueScrap } from './currency.ts';
 import type { TradeExecutor } from './execution/executor.ts';
-import { findOpportunity, keyRateFromBook } from './strategy/arbitrage.ts';
+import { describeBook, findOpportunity, keyRateFromBook } from './strategy/arbitrage.ts';
 import type { ListingFilter } from './strategy/arbitrage.ts';
 import { KEY_SKU } from './types.ts';
 import type { MarketDataSource, Opportunity } from './types.ts';
@@ -41,7 +41,7 @@ export class Bot {
     const keyBook = await this.#market.getListings(KEY_SKU);
     const rate = keyRateFromBook(keyBook, filter);
     if (!rate) {
-      this.#log('key book has no tradable buy or sell side; skipping tick');
+      this.#log(`key book has no tradable buy or sell side (${describeBook(keyBook, filter)}); skipping tick`);
       return { valueScrap: null, executed: [] };
     }
 
