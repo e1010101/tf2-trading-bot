@@ -4,6 +4,7 @@ import TradeOfferManager from 'steam-tradeoffer-manager';
 import SteamUser from 'steam-user';
 import type { SteamCredentials } from '../config.ts';
 import type { Holdings, Opportunity } from '../types.ts';
+import { missingTradeInfo } from './executor.ts';
 import type { ExecutionResult, TradeExecutor } from './executor.ts';
 import { classifyPure, holdingsOf, selectPayment } from './payment.ts';
 import type { PureItem } from './payment.ts';
@@ -105,9 +106,10 @@ export class SteamExecutor implements TradeExecutor {
 
   async execute(opp: Opportunity): Promise<ExecutionResult> {
     const { buyFrom, sellTo } = opp;
-    if (!buyFrom.itemId) return { ok: false, reason: 'seller listing has no item ID' };
-    if (!buyFrom.tradeOfferUrl) return { ok: false, reason: 'seller listing has no trade offer URL' };
-    if (!sellTo.tradeOfferUrl) return { ok: false, reason: 'buyer listing has no trade offer URL' };
+    const missing = missingTradeInfo(opp);
+    if (missing || !buyFrom.itemId || !buyFrom.tradeOfferUrl || !sellTo.tradeOfferUrl) {
+      return { ok: false, reason: missing ?? 'missing trade info' };
+    }
 
     // Leg 1: pay the seller, receive the item.
     const pay = selectPayment(await this.#pure(), buyFrom.price);

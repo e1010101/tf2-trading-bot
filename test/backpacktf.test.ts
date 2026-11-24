@@ -38,3 +38,19 @@ test('unexpected shape is an error, not an empty book', () =>
   withFetch({ message: 'nope' }, async () => {
     await assert.rejects(new BackpackTfSource('t').getListings('5021;6'), /no listings array; top-level keys: message/);
   }));
+
+test('freshness uses the agent pulse, and trade URLs come from the lookup', () =>
+  withFetch(
+    {
+      listings: [
+        { steamid: 'a', intent: 'sell', timestamp: 1, bump: 5, currencies: { metal: 1 }, userAgent: { lastPulse: 99 }, item: { id: 123 } },
+      ],
+    },
+    async () => {
+      const src = new BackpackTfSource('t', { tradeUrl: (id) => (id === 'a' ? 'https://steamcommunity.com/tradeoffer/new/?partner=1&token=x' : undefined) });
+      const [l] = await src.getListings('5021;6');
+      assert.equal(l?.updatedAt, 99);
+      assert.equal(l?.itemId, '123');
+      assert.equal(l?.tradeOfferUrl, 'https://steamcommunity.com/tradeoffer/new/?partner=1&token=x');
+    },
+  ));

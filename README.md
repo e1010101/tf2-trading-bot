@@ -36,9 +36,14 @@ to configure.
 | `src/execution/` | `TradeExecutor`: paper executor, Steam stub |
 | `src/bot.ts` | scan loop and risk checks |
 
+## Trade URLs
+
+backpack.tf's listing snapshot doesn't include trade offer URLs, which Steam requires to send
+offers to non-friends. While `npm start` runs, the bot follows backpack.tf's public event feed
+and saves each trader's URL to `data/trade-urls.json` (gitignored: it holds trade tokens).
+A trade is only attempted once both sides' URLs are known, in paper mode too.
+
 ## Not done yet
 
-- `SteamExecutor` (`src/execution/steam.ts`) is written but has not run against Steam. It also
-  needs each listing's trade offer URL, which the backpack.tf client doesn't map yet.
-  `npm run dump-listings` prints raw listings to find the right fields.
+- `SteamExecutor` (`src/execution/steam.ts`) is written but has not run against Steam.
 - No persistence of trades or value history.

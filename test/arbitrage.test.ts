@@ -75,3 +75,15 @@ test('describeBook explains why listings were dropped', async () => {
   ];
   assert.equal(describeBook(book, filter), '3 listings, tradable buy=0 sell=1, dropped notAutomatic=1 stale=1');
 });
+
+test('paper executor in strict mode skips trades the live executor could not send', async () => {
+  const exec = new PaperExecutor({ keys: 0, scrap: 1000 }, { requireTradeInfo: true });
+  const opp = { sku: 'x', buyFrom: l('x', 'sell', 'a', 84), sellTo: l('x', 'buy', 'c', 87), costScrap: 84, proceedsScrap: 87, profitScrap: 3 };
+  assert.deepEqual(await exec.execute(opp), { ok: false, reason: 'seller listing has no item ID' });
+  const ready = {
+    ...opp,
+    buyFrom: { ...opp.buyFrom, itemId: '1', tradeOfferUrl: 'u' },
+    sellTo: { ...opp.sellTo, tradeOfferUrl: 'u' },
+  };
+  assert.deepEqual(await exec.execute(ready), { ok: true });
+});

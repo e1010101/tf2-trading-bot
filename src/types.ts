@@ -15,7 +15,7 @@ export interface Listing {
   price: Currencies;
   /** Listed by a bot that accepts matching offers instantly. Arbitrage needs both legs to be automatic. */
   automatic: boolean;
-  /** Epoch seconds of the last bump/update. */
+  /** Epoch seconds of the last sign the listing is live: the agent's last pulse, else last bump. */
   updatedAt: number;
   /** Sell listings: asset ID of the exact item for sale. */
   itemId?: string;

@@ -38,12 +38,21 @@ export class BackpackTfSource implements MarketDataSource {
   readonly #token: string;
   readonly #baseUrl: string;
   readonly #log: (msg: string) => void;
+  readonly #tradeUrl: (steamId: string) => string | undefined;
 
-  constructor(token: string, log: (msg: string) => void = () => {}, baseUrl = 'https://backpack.tf/api') {
+  constructor(
+    token: string,
+    opts: {
+      log?: (msg: string) => void;
+      tradeUrl?: (steamId: string) => string | undefined;
+      baseUrl?: string;
+    } = {},
+  ) {
     if (!token) throw new Error('BPTF_TOKEN is required for DATA_SOURCE=backpacktf');
     this.#token = token;
-    this.#log = log;
-    this.#baseUrl = baseUrl;
+    this.#log = opts.log ?? (() => {});
+    this.#tradeUrl = opts.tradeUrl ?? (() => undefined);
+    this.#baseUrl = opts.baseUrl ?? 'https://backpack.tf/api';
   }
 
   async getListings(sku: string): Promise<Listing[]> {
@@ -83,8 +92,10 @@ export class BackpackTfSource implements MarketDataSource {
         steamId: l.steamid,
         price: { keys: l.currencies?.keys ?? 0, scrap: refToScrap(l.currencies?.metal ?? 0) },
         automatic: l.userAgent !== undefined,
-        updatedAt: l.bump ?? l.timestamp,
+        // An agent's pulse shows the bot is online now; bumps can be hours old on live listings.
+        updatedAt: l.userAgent?.lastPulse ?? l.bump ?? l.timestamp,
         itemId: l.item?.id !== undefined ? String(l.item.id) : undefined,
+        tradeOfferUrl: this.#tradeUrl(l.steamid),
       });
     }
     this.#log(
