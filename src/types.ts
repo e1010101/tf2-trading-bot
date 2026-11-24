@@ -17,6 +17,10 @@ export interface Listing {
   automatic: boolean;
   /** Epoch seconds of the last bump/update. */
   updatedAt: number;
+  /** Sell listings: asset ID of the exact item for sale. */
+  itemId?: string;
+  /** Counterparty's trade offer URL; needed to send offers to non-friends. */
+  tradeOfferUrl?: string;
 }
 
 export interface MarketDataSource {

@@ -20,6 +20,14 @@ export interface Config {
   pollIntervalS: number;
   dryRun: boolean;
   paperStart: { keys: number; scrap: number };
+  steam: SteamCredentials;
+}
+
+export interface SteamCredentials {
+  accountName: string;
+  password: string;
+  sharedSecret: string;
+  identitySecret: string;
 }
 
 export function loadConfig(): Config {
@@ -43,5 +51,11 @@ export function loadConfig(): Config {
     pollIntervalS: num('POLL_INTERVAL_S', 60),
     dryRun: (process.env.DRY_RUN ?? 'true') !== 'false',
     paperStart: { keys: num('PAPER_START_KEYS', 2), scrap: refToScrap(num('PAPER_START_REF', 150)) },
+    steam: {
+      accountName: process.env.STEAM_ACCOUNT_NAME ?? '',
+      password: process.env.STEAM_PASSWORD ?? '',
+      sharedSecret: process.env.STEAM_SHARED_SECRET ?? '',
+      identitySecret: process.env.STEAM_IDENTITY_SECRET ?? '',
+    },
   };
 }

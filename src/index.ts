@@ -9,7 +9,6 @@ import { MockSource } from './market/mock.ts';
 const cfg = loadConfig();
 
 
-const executor = cfg.dryRun ? new PaperExecutor(cfg.paperStart) : new SteamExecutor();
 
 const log = (msg: string) => console.log(`${new Date().toISOString()} ${msg}`);
 
@@ -18,6 +17,8 @@ const market =
     ? new BackpackTfSource(cfg.bptfToken, log)
     : new MockSource(fileURLToPath(new URL('../fixtures/market.json', import.meta.url)));
 log(`source=${cfg.dataSource} dryRun=${cfg.dryRun} watchlist=${cfg.watchlist.join(',')}`);
+
+const executor = cfg.dryRun ? new PaperExecutor(cfg.paperStart) : new SteamExecutor(cfg.steam, log);
 
 const bot = new Bot(cfg, market, executor, log);
 

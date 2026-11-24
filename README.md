@@ -38,8 +38,7 @@ to configure.
 
 ## Not done yet
 
-- `SteamExecutor` is a stub; live trading does not work. See the notes in `src/execution/steam.ts`.
-- `BackpackTfSource` has not been run against the live API.
-- The paper executor assumes both legs always fill. Real fills can fail on leg 2 and leave
-  the item in the backpack.
+- `SteamExecutor` (`src/execution/steam.ts`) is written but has not run against Steam. It also
+  needs each listing's trade offer URL, which the backpack.tf client doesn't map yet.
+  `npm run dump-listings` prints raw listings to find the right fields.
 - No persistence of trades or value history.

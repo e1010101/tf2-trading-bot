@@ -21,6 +21,7 @@ interface SnapshotListing {
   bump?: number;
   currencies?: { metal?: number; keys?: number };
   userAgent?: { client?: string; lastPulse?: number };
+  item?: { id?: string | number };
 }
 
 interface SnapshotResponse {
@@ -83,6 +84,7 @@ export class BackpackTfSource implements MarketDataSource {
         price: { keys: l.currencies?.keys ?? 0, scrap: refToScrap(l.currencies?.metal ?? 0) },
         automatic: l.userAgent !== undefined,
         updatedAt: l.bump ?? l.timestamp,
+        itemId: l.item?.id !== undefined ? String(l.item.id) : undefined,
       });
     }
     this.#log(

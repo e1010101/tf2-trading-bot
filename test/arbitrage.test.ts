@@ -58,6 +58,7 @@ test('bot tick grows paper backpack value and respects affordability', async () 
     dataSource: 'mock', bptfToken: '', steamId: 'me', watchlist: [KEY_SKU, 'x', 'pricey'],
     minProfitScrap: 1, maxTradeCostScrap: 100_000, maxListingAgeS: 1e12, pollIntervalS: 1, dryRun: true,
     paperStart: { keys: 1, scrap: 100 },
+    steam: { accountName: '', password: '', sharedSecret: '', identitySecret: '' },
   };
   const bot = new Bot(cfg, market, new PaperExecutor(cfg.paperStart), () => {});
   const report = await bot.tick();
