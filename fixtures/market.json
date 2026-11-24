@@ -1,0 +1,18 @@
+{
+  "5021;6": [
+    { "intent": "sell", "steamId": "seller-a", "metal": 56.33 },
+    { "intent": "sell", "steamId": "seller-b", "metal": 56.55 },
+    { "intent": "buy", "steamId": "buyer-a", "metal": 56.11 },
+    { "intent": "buy", "steamId": "buyer-b", "metal": 55.88 },
+    { "intent": "buy", "steamId": "human", "metal": 57.0, "automatic": false }
+  ],
+  "30743;6": [
+    { "intent": "sell", "steamId": "seller-c", "metal": 9.33 },
+    { "intent": "buy", "steamId": "buyer-c", "metal": 9.66 },
+    { "intent": "buy", "steamId": "buyer-stale", "metal": 11.0, "ageS": 99999 }
+  ],
+  "378;6": [
+    { "intent": "sell", "steamId": "seller-d", "keys": 1, "metal": 3.0 },
+    { "intent": "buy", "steamId": "buyer-d", "keys": 1, "metal": 3.22 }
+  ]
+}
