@@ -6,6 +6,7 @@ import { SteamExecutor } from './execution/steam.ts';
 import { BackpackTfSource } from './market/backpacktf.ts';
 import { MockSource } from './market/mock.ts';
 import { TradeUrlBook } from './market/tradeUrls.ts';
+import { tradeLogger } from './tradeLog.ts';
 
 const cfg = loadConfig();
 const once = process.argv.includes('--once');
@@ -32,7 +33,11 @@ const executor = cfg.dryRun
   ? new PaperExecutor(cfg.paperStart, { requireTradeInfo: cfg.dataSource === 'backpacktf' })
   : new SteamExecutor(cfg.steam, log);
 
-const bot = new Bot(cfg, market, executor, log);
+const bot = new Bot(cfg, market, executor, {
+  log,
+  requireTradeInfo: cfg.dataSource === 'backpacktf',
+  recordTrade: tradeLogger(fileURLToPath(new URL('../data/trades.jsonl', import.meta.url))),
+});
 
 if (once) await bot.tick();
 else await bot.run(ac.signal);

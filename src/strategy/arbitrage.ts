@@ -40,6 +40,11 @@ export function describeBook(listings: Listing[], f: ListingFilter): string {
   return `${listings.length} listings, tradable buy=${counts.buy} sell=${counts.sell}` + (drops ? `, dropped ${drops}` : '');
 }
 
+/** True if the live executor has what it needs to trade against this listing. */
+export function hasTradeInfo(l: Listing): boolean {
+  return Boolean(l.tradeOfferUrl) && (l.intent === 'buy' || Boolean(l.itemId));
+}
+
 /** Derive the key<->metal rate from the key order book. Null if either side is empty. */
 export function keyRateFromBook(keyListings: Listing[], f: ListingFilter): KeyRate | null {
   const book = tradable(keyListings, f).filter((l) => l.sku === KEY_SKU);
@@ -60,8 +65,10 @@ export function findOpportunity(
   rate: KeyRate,
   f: ListingFilter,
   minProfitScrap: number,
+  /** Extra per-listing check, e.g. "we have its trade URL" or "not already traded". */
+  usable: (l: Listing) => boolean = () => true,
 ): Opportunity | null {
-  const book = tradable(listings, f).filter((l) => l.sku === sku);
+  const book = tradable(listings, f).filter((l) => l.sku === sku && usable(l));
 
   let buyFrom: Listing | undefined;
   let sellTo: Listing | undefined;

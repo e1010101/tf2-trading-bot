@@ -1,10 +1,32 @@
 import type { Config } from './config.ts';
 import { canAfford, formatPrice, formatRef, holdingsValueScrap } from './currency.ts';
 import type { TradeExecutor } from './execution/executor.ts';
-import { describeBook, findOpportunity, keyRateFromBook } from './strategy/arbitrage.ts';
+import { describeBook, findOpportunity, hasTradeInfo, keyRateFromBook } from './strategy/arbitrage.ts';
 import type { ListingFilter } from './strategy/arbitrage.ts';
 import { KEY_SKU } from './types.ts';
-import type { MarketDataSource, Opportunity } from './types.ts';
+import type { Currencies, Listing, MarketDataSource, Opportunity } from './types.ts';
+
+export interface TradeRecord {
+  time: string;
+  sku: string;
+  dryRun: boolean;
+  ok: boolean;
+  reason?: string;
+  seller: string;
+  sellerItemId?: string;
+  buyPrice: Currencies;
+  buyer: string;
+  sellPrice: Currencies;
+  profitScrap: number;
+}
+
+export interface BotOptions {
+  log?: (msg: string) => void;
+  /** Only trade against listings the live executor can act on (item ID and trade URLs known). */
+  requireTradeInfo?: boolean;
+  /** Called once per attempted trade, successful or not. */
+  recordTrade?: (t: TradeRecord) => void;
+}
 
 export interface TickReport {
   /** Null when the key book was unusable and the tick was skipped. */
@@ -17,18 +39,27 @@ export class Bot {
   readonly #market: MarketDataSource;
   readonly #executor: TradeExecutor;
   readonly #log: (msg: string) => void;
+  readonly #requireTradeInfo: boolean;
+  readonly #recordTrade: (t: TradeRecord) => void;
+  /**
+   * Seller item IDs we have already traded for. A listing can stay in the snapshot for a while
+   * after it fills; without this, paper trading counts the same key every minute and live
+   * trading would resend offers for an item that is gone.
+   */
+  readonly #usedItems = new Set<string>();
 
-  constructor(
-    cfg: Config,
-    market: MarketDataSource,
-    executor: TradeExecutor,
-    log: (msg: string) => void = console.log,
-  ) {
+  constructor(cfg: Config, market: MarketDataSource, executor: TradeExecutor, opts: BotOptions = {}) {
     this.#cfg = cfg;
     this.#market = market;
     this.#executor = executor;
-    this.#log = log;
+    this.#log = opts.log ?? console.log;
+    this.#requireTradeInfo = opts.requireTradeInfo ?? false;
+    this.#recordTrade = opts.recordTrade ?? (() => {});
   }
+
+  #notUsed = (l: Listing): boolean => !(l.intent === 'sell' && l.itemId && this.#usedItems.has(l.itemId));
+
+  #usable = (l: Listing): boolean => this.#notUsed(l) && (!this.#requireTradeInfo || hasTradeInfo(l));
 
   /** One scan of the watchlist: price keys, look for crossed books, execute what passes risk checks. */
   async tick(): Promise<TickReport> {
@@ -49,8 +80,13 @@ export class Bot {
     for (const sku of this.#cfg.watchlist) {
       try {
         const listings = sku === KEY_SKU ? keyBook : await this.#market.getListings(sku);
-        const opp = findOpportunity(sku, listings, rate, filter, this.#cfg.minProfitScrap);
-        if (!opp) continue;
+        const opp = findOpportunity(sku, listings, rate, filter, this.#cfg.minProfitScrap, this.#usable);
+        if (!opp) {
+          if (findOpportunity(sku, listings, rate, filter, this.#cfg.minProfitScrap, this.#notUsed)) {
+            this.#log(`${sku}: book is crossed, but no counterparty pair with known trade URLs yet`);
+          }
+          continue;
+        }
 
         const holdings = await this.#executor.getHoldings();
         if (opp.costScrap > this.#cfg.maxTradeCostScrap) {
@@ -63,6 +99,21 @@ export class Bot {
         }
 
         const res = await this.#executor.execute(opp);
+        // Never retry the same item: it filled, or its seller didn't accept our offer.
+        if (opp.buyFrom.itemId) this.#usedItems.add(opp.buyFrom.itemId);
+        this.#recordTrade({
+          time: new Date().toISOString(),
+          sku,
+          dryRun: this.#cfg.dryRun,
+          ok: res.ok,
+          reason: res.reason,
+          seller: opp.buyFrom.steamId,
+          sellerItemId: opp.buyFrom.itemId,
+          buyPrice: opp.buyFrom.price,
+          buyer: opp.sellTo.steamId,
+          sellPrice: opp.sellTo.price,
+          profitScrap: opp.profitScrap,
+        });
         if (res.ok) {
           executed.push(opp);
           this.#log(

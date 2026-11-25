@@ -60,7 +60,7 @@ test('bot tick grows paper backpack value and respects affordability', async () 
     paperStart: { keys: 1, scrap: 100 },
     steam: { accountName: '', password: '', sharedSecret: '', identitySecret: '' },
   };
-  const bot = new Bot(cfg, market, new PaperExecutor(cfg.paperStart), () => {});
+  const bot = new Bot(cfg, market, new PaperExecutor(cfg.paperStart), { log: () => {} });
   const report = await bot.tick();
   assert.deepEqual(report.executed.map((o) => o.sku), ['x']);
   assert.equal(report.valueScrap, 500 + 103);
@@ -86,4 +86,34 @@ test('paper executor in strict mode skips trades the live executor could not sen
     sellTo: { ...opp.sellTo, tradeOfferUrl: 'u' },
   };
   assert.deepEqual(await exec.execute(ready), { ok: true });
+});
+
+test('falls back to the best seller with trade info, and never buys the same item twice', async () => {
+  const url = 'https://steamcommunity.com/tradeoffer/new/?partner=1&token=x';
+  const books: Record<string, Listing[]> = {
+    [KEY_SKU]: [
+      l(KEY_SKU, 'sell', 'cheap-no-url', 600, { itemId: 'k0' }),
+      l(KEY_SKU, 'sell', 'seller', 610, { itemId: 'k1', tradeOfferUrl: url }),
+      l(KEY_SKU, 'sell', 'seller2', 612, { itemId: 'k2', tradeOfferUrl: url }),
+      l(KEY_SKU, 'buy', 'buyer', 620, { tradeOfferUrl: url }),
+    ],
+  };
+  const market: MarketDataSource = { getListings: async (sku) => books[sku] ?? [] };
+  const cfg: Config = {
+    dataSource: 'backpacktf', bptfToken: '', steamId: 'me', watchlist: [KEY_SKU],
+    minProfitScrap: 1, maxTradeCostScrap: 100_000, maxListingAgeS: 1e12, pollIntervalS: 1, dryRun: true,
+    paperStart: { keys: 0, scrap: 5000 },
+    steam: { accountName: '', password: '', sharedSecret: '', identitySecret: '' },
+  };
+  const records: string[] = [];
+  const bot = new Bot(cfg, market, new PaperExecutor(cfg.paperStart, { requireTradeInfo: true }), {
+    log: () => {},
+    requireTradeInfo: true,
+    recordTrade: (t) => records.push(`${t.sellerItemId}:${t.ok}`),
+  });
+  const ids = async () => (await bot.tick()).executed.map((o) => o.buyFrom.itemId);
+  assert.deepEqual(await ids(), ['k1']);
+  assert.deepEqual(await ids(), ['k2']);
+  assert.deepEqual(await ids(), []);
+  assert.deepEqual(records, ['k1:true', 'k2:true']);
 });

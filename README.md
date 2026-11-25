@@ -43,7 +43,12 @@ offers to non-friends. While `npm start` runs, the bot follows backpack.tf's pub
 and saves each trader's URL to `data/trade-urls.json` (gitignored: it holds trade tokens).
 A trade is only attempted once both sides' URLs are known, in paper mode too.
 
+## Measuring results
+
+Every attempted trade is appended to `data/trades.jsonl`. `npm run report` summarises it:
+attempts, fills, profit and profit per hour, split into paper and live, plus why trades failed.
+
 ## Not done yet
 
 - `SteamExecutor` (`src/execution/steam.ts`) is written but has not run against Steam.
-- No persistence of trades or value history.
+- No history of backpack value over time (only per-trade records).

@@ -12,7 +12,8 @@
     "once": "node --env-file-if-exists=.env src/index.ts --once",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc",
-    "dump-listings": "node --env-file-if-exists=.env src/tools/dump-listings.ts"
+    "dump-listings": "node --env-file-if-exists=.env src/tools/dump-listings.ts",
+    "report": "node src/tools/report.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
