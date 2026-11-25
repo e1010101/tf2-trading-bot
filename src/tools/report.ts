@@ -22,6 +22,33 @@ for (const dryRun of [true, false]) {
   const hours = (Date.parse(ts.at(-1)!.time) - Date.parse(ts[0]!.time)) / 3_600_000 || 0;
   console.log(`${dryRun ? 'paper' : 'live'}: ${ts.length} attempts, ${ok.length} filled, profit ${formatRef(profit)}` +
     (hours ? ` over ${hours.toFixed(1)} h (${formatRef(Math.round(profit / hours))}/h)` : ''));
+  if (ok.length) {
+    const count = (key: (t: TradeRecord) => string) => {
+      const m = new Map<string, number>();
+      for (const t of ok) m.set(key(t), (m.get(key(t)) ?? 0) + 1);
+      return m;
+    };
+    const buyers = count((t) => t.buyer);
+    const sellers = count((t) => t.seller);
+    const top = [...buyers.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+    console.log(`  ${sellers.size} distinct sellers, ${buyers.size} distinct buyers`);
+    console.log(`  busiest buyers: ${top.map(([id, n]) => `${id} x${n}`).join(', ')}`);
+    const buckets = [
+      ['1-2 scrap', (p: number) => p <= 2],
+      ['3-5 scrap', (p: number) => p >= 3 && p <= 5],
+      ['6-8 scrap', (p: number) => p >= 6 && p <= 8],
+      ['1 ref +', (p: number) => p >= 9],
+    ] as const;
+    console.log(
+      '  profit per trade: ' +
+        buckets
+          .map(([label, test]) => {
+            const b = ok.filter((t) => test(t.profitScrap));
+            return `${label}: ${b.length} (${formatRef(b.reduce((s, t) => s + t.profitScrap, 0))})`;
+          })
+          .join(', '),
+    );
+  }
   const reasons = new Map<string, number>();
   for (const t of ts) if (!t.ok) reasons.set(t.reason ?? 'unknown', (reasons.get(t.reason ?? 'unknown') ?? 0) + 1);
   for (const [r, n] of reasons) console.log(`  failed ${n}x: ${r}`);

@@ -32,6 +32,9 @@ const asset = (assetid: string): Asset => ({ appid: TF2_APPID, contextid: String
 /**
  * Live executor: logs the bot account in and runs each opportunity as two Steam trade offers.
  *
+ * Before sending anything it asks Steam whether either counterparty (or we) would get a trade
+ * hold, and skips the trade if so.
+ *
  * Leg 1 pays the seller exact change from our pure and takes their listed item. Leg 2 gives
  * that item to the buyer and requests exact change from their pure. If leg 2 fails the item
  * stays in our backpack and the failure says so; nothing is dumped at a loss.
@@ -111,6 +114,14 @@ export class SteamExecutor implements TradeExecutor {
       return { ok: false, reason: missing ?? 'missing trade info' };
     }
 
+    // Check both sides for trade holds before anything is sent: a held leg 2 would strand the
+    // item for days, and a held leg 1 means our pure sits in escrow.
+    for (const [who, url] of [['seller', buyFrom.tradeOfferUrl], ['buyer', sellTo.tradeOfferUrl]] as const) {
+      const hold = await this.#holdDays(url);
+      if (hold.me > 0) return { ok: false, reason: `our account has a ${hold.me}-day trade hold; nothing traded` };
+      if (hold.them > 0) return { ok: false, reason: `${who} has a ${hold.them}-day trade hold; nothing traded` };
+    }
+
     // Leg 1: pay the seller, receive the item.
     const pay = selectPayment(await this.#pure(), buyFrom.price);
     if (!pay) return { ok: false, reason: 'no exact change for leg 1' };
@@ -140,6 +151,17 @@ export class SteamExecutor implements TradeExecutor {
       return { ok: false, reason: `leg 2 ${state2}; item ${item.assetid} held in backpack` };
     }
     return { ok: true };
+  }
+
+  /** Trade hold days Steam would apply to an offer between us and the owner of `tradeUrl`. */
+  async #holdDays(tradeUrl: string): Promise<{ me: number; them: number }> {
+    await this.#login();
+    const probe = this.#manager.createOffer(tradeUrl);
+    return new Promise((resolve, reject) =>
+      probe.getUserDetails((err, me, them) =>
+        err ? reject(err) : resolve({ me: me.escrowDays ?? 0, them: them.escrowDays ?? 0 }),
+      ),
+    );
   }
 
   /** Send, confirm with the identity secret, and wait for the partner to act. Cancels on timeout. */
