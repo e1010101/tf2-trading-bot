@@ -1,10 +1,18 @@
-/** Summarises data/trades.jsonl: attempts, fills and profit, split by paper/live. */
+/**
+ * Summarises data/trades.jsonl: attempts, fills and profit, split by paper/live.
+ * Usage: npm run report [-- --since <date/time>] [path]
+ */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { TradeRecord } from '../bot.ts';
 import { formatRef } from '../currency.ts';
 
-const path = process.argv[2] ?? fileURLToPath(new URL('../../data/trades.jsonl', import.meta.url));
+const args = process.argv.slice(2);
+const sinceAt = args.indexOf('--since');
+const since = sinceAt >= 0 ? Date.parse(args[sinceAt + 1] ?? '') : -Infinity;
+if (Number.isNaN(since)) throw new Error('--since needs a date, e.g. --since 2026-11-25T12:00');
+if (sinceAt >= 0) args.splice(sinceAt, 2);
+const path = args[0] ?? fileURLToPath(new URL('../../data/trades.jsonl', import.meta.url));
 let lines: string[];
 try {
   lines = readFileSync(path, 'utf8').split('\n').filter(Boolean);
@@ -12,7 +20,8 @@ try {
   console.log(`no trade log at ${path} yet`);
   process.exit(0);
 }
-const trades = lines.map((l) => JSON.parse(l) as TradeRecord);
+const trades = lines.map((l) => JSON.parse(l) as TradeRecord).filter((t) => Date.parse(t.time) >= since);
+if (sinceAt >= 0) console.log(`trades since ${new Date(since).toISOString()}: ${trades.length}`);
 
 for (const dryRun of [true, false]) {
   const ts = trades.filter((t) => t.dryRun === dryRun);

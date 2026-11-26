@@ -45,7 +45,8 @@ A trade is only attempted once both sides' URLs are known, in paper mode too.
 
 ## Measuring results
 
-Every attempted trade is appended to `data/trades.jsonl`. `npm run report` summarises it:
+Every attempted trade is appended to `data/trades.jsonl`. `npm run report` summarises it
+(`npm run report -- --since 2026-11-25T12:00` limits it to one run):
 attempts, fills, profit and profit per hour, split into paper and live, plus why trades failed.
 
 ## Not done yet
