@@ -15,6 +15,8 @@ export interface Config {
   steamId?: string;
   watchlist: string[];
   minProfitScrap: number;
+  /** Skip trades whose profit exceeds this percentage of cost: almost always a mismatch, not a bargain. */
+  maxProfitPct: number;
   maxTradeCostScrap: number;
   maxListingAgeS: number;
   pollIntervalS: number;
@@ -46,6 +48,7 @@ export function loadConfig(): Config {
     steamId: process.env.STEAM_ID || undefined,
     watchlist,
     minProfitScrap: num('MIN_PROFIT_SCRAP', 1),
+    maxProfitPct: num('MAX_PROFIT_PCT', 10),
     maxTradeCostScrap: refToScrap(num('MAX_TRADE_COST_REF', 200)),
     maxListingAgeS: num('MAX_LISTING_AGE_S', 1800),
     pollIntervalS: num('POLL_INTERVAL_S', 60),

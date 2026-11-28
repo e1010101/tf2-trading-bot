@@ -54,3 +54,17 @@ test('freshness uses the agent pulse, and trade URLs come from the lookup', () =
       assert.equal(l?.tradeOfferUrl, 'https://steamcommunity.com/tradeoffer/new/?partner=1&token=x');
     },
   ));
+
+test('flags listings for painted or otherwise special variants', () =>
+  withFetch(
+    {
+      listings: [
+        { steamid: 'a', intent: 'buy', timestamp: 1, currencies: { metal: 23 }, item: { attributes: [{ defindex: 142 }] } },
+        { steamid: 'b', intent: 'buy', timestamp: 1, currencies: { metal: 12 }, item: { attributes: [{ defindex: 229 }] } },
+      ],
+    },
+    async () => {
+      const got = await new BackpackTfSource('t').getListings('The Western Wraps');
+      assert.deepEqual(got.map((l) => l.special), [true, false]);
+    },
+  ));

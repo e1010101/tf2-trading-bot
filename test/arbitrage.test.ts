@@ -56,7 +56,7 @@ test('bot tick grows paper backpack value and respects affordability', async () 
   const market: MarketDataSource = { getListings: async (sku) => books[sku] ?? [] };
   const cfg: Config = {
     dataSource: 'mock', bptfToken: '', steamId: 'me', watchlist: [KEY_SKU, 'x', 'pricey'],
-    minProfitScrap: 1, maxTradeCostScrap: 100_000, maxListingAgeS: 1e12, pollIntervalS: 1, dryRun: true,
+    minProfitScrap: 1, maxProfitPct: 10, maxTradeCostScrap: 100_000, maxListingAgeS: 1e12, pollIntervalS: 1, dryRun: true,
     paperStart: { keys: 1, scrap: 100 },
     steam: { accountName: '', password: '', sharedSecret: '', identitySecret: '' },
   };
@@ -101,7 +101,7 @@ test('falls back to the best seller with trade info, and never buys the same ite
   const market: MarketDataSource = { getListings: async (sku) => books[sku] ?? [] };
   const cfg: Config = {
     dataSource: 'backpacktf', bptfToken: '', steamId: 'me', watchlist: [KEY_SKU],
-    minProfitScrap: 1, maxTradeCostScrap: 100_000, maxListingAgeS: 1e12, pollIntervalS: 1, dryRun: true,
+    minProfitScrap: 1, maxProfitPct: 10, maxTradeCostScrap: 100_000, maxListingAgeS: 1e12, pollIntervalS: 1, dryRun: true,
     paperStart: { keys: 0, scrap: 5000 },
     steam: { accountName: '', password: '', sharedSecret: '', identitySecret: '' },
   };
@@ -116,4 +116,28 @@ test('falls back to the best seller with trade info, and never buys the same ite
   assert.deepEqual(await ids(), ['k2']);
   assert.deepEqual(await ids(), []);
   assert.deepEqual(records, ['k1:true', 'k2:true']);
+});
+
+test('special-variant listings are not tradable', () => {
+  const book = [l('x', 'sell', 'a', 84), l('x', 'buy', 'c', 200, { special: true }), l('x', 'buy', 'd', 87)];
+  const opp = findOpportunity('x', book, rate, filter, 1);
+  assert.equal(opp?.sellTo.steamId, 'd');
+});
+
+test('bot skips trades with implausible profit', async () => {
+  const books: Record<string, Listing[]> = {
+    [KEY_SKU]: [l(KEY_SKU, 'sell', 'a', 510), l(KEY_SKU, 'buy', 'c', 500)],
+    hat: [l('hat', 'sell', 'a', 110), l('hat', 'buy', 'c', 207)],
+  };
+  const market: MarketDataSource = { getListings: async (sku) => books[sku] ?? [] };
+  const cfg: Config = {
+    dataSource: 'mock', bptfToken: '', steamId: 'me', watchlist: ['hat'],
+    minProfitScrap: 1, maxProfitPct: 10, maxTradeCostScrap: 100_000, maxListingAgeS: 1e12, pollIntervalS: 1, dryRun: true,
+    paperStart: { keys: 0, scrap: 1000 },
+    steam: { accountName: '', password: '', sharedSecret: '', identitySecret: '' },
+  };
+  const logs: string[] = [];
+  const bot = new Bot(cfg, market, new PaperExecutor(cfg.paperStart), { log: (m) => logs.push(m) });
+  assert.deepEqual((await bot.tick()).executed, []);
+  assert.ok(logs.some((m) => m.includes('probably a buyer wanting a special variant')));
 });

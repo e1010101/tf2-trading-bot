@@ -21,6 +21,11 @@ export interface Listing {
   itemId?: string;
   /** Counterparty's trade offer URL; needed to send offers to non-friends. */
   tradeOfferUrl?: string;
+  /**
+   * The listing is for a particular variant (paint, spell, unusual effect, strange parts,
+   * killstreak, australium). Such buy listings won't accept a plain copy of the item.
+   */
+  special?: boolean;
 }
 
 export interface MarketDataSource {

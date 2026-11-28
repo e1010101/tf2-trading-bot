@@ -13,6 +13,20 @@ export const SKU_NAMES: Record<string, string> = {
   [KEY_SKU]: 'Mann Co. Supply Crate Key',
 };
 
+/**
+ * TF2 attribute defindexes that make an item a distinct variant. From the TF2 item schema as
+ * best known; extend if a variant slips through (the report's outsized-profit skips will show it).
+ */
+const SPECIAL_ATTRIBUTES = new Set([
+  134, // unusual particle effect
+  142, // paint colour
+  261, // paint colour (team 2)
+  380, 382, 384, // strange parts
+  1004, 1005, 1006, 1007, 1008, 1009, // halloween spells
+  2013, 2014, 2025, // killstreaker, sheen, killstreak tier
+  2027, // australium
+]);
+
 interface SnapshotListing {
   steamid: string;
   /** Strings on current responses; 0 = buy, 1 = sell on older ones. */
@@ -21,7 +35,7 @@ interface SnapshotListing {
   bump?: number;
   currencies?: { metal?: number; keys?: number };
   userAgent?: { client?: string; lastPulse?: number };
-  item?: { id?: string | number };
+  item?: { id?: string | number; attributes?: Array<{ defindex?: number }> };
 }
 
 interface SnapshotResponse {
@@ -96,6 +110,7 @@ export class BackpackTfSource implements MarketDataSource {
         updatedAt: l.userAgent?.lastPulse ?? l.bump ?? l.timestamp,
         itemId: l.item?.id !== undefined ? String(l.item.id) : undefined,
         tradeOfferUrl: this.#tradeUrl(l.steamid),
+        special: (l.item?.attributes ?? []).some((a) => a.defindex !== undefined && SPECIAL_ATTRIBUTES.has(a.defindex)),
       });
     }
     this.#log(

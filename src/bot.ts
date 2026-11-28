@@ -88,6 +88,14 @@ export class Bot {
           continue;
         }
 
+        if (opp.profitScrap * 100 > this.#cfg.maxProfitPct * opp.costScrap) {
+          this.#log(
+            `${sku}: skip, +${formatRef(opp.profitScrap)} on ${formatRef(opp.costScrap)} is over ` +
+              `${this.#cfg.maxProfitPct}%; probably a buyer wanting a special variant`,
+          );
+          continue;
+        }
+
         const holdings = await this.#executor.getHoldings();
         if (opp.costScrap > this.#cfg.maxTradeCostScrap) {
           this.#log(`${sku}: skip, cost ${formatRef(opp.costScrap)} over per-trade cap`);

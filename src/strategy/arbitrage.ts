@@ -10,7 +10,7 @@ export interface ListingFilter {
   ownSteamId?: string;
 }
 
-export type RejectReason = 'notAutomatic' | 'own' | 'stale' | 'keyPricedKey';
+export type RejectReason = 'notAutomatic' | 'own' | 'stale' | 'keyPricedKey' | 'special';
 
 /** Why a listing can't be traded against right now, or null if it can. */
 export function rejectReason(l: Listing, f: ListingFilter): RejectReason | null {
@@ -19,6 +19,7 @@ export function rejectReason(l: Listing, f: ListingFilter): RejectReason | null 
   if (f.now - l.updatedAt > f.maxListingAgeS) return 'stale';
   // Keys are only ever priced in metal; a key listing asking for keys is junk.
   if (l.sku === KEY_SKU && l.price.keys > 0) return 'keyPricedKey';
+  if (l.special) return 'special';
   return null;
 }
 
