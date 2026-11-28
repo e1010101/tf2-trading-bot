@@ -37,6 +37,15 @@ for (const dryRun of [true, false]) {
       for (const t of ok) m.set(key(t), (m.get(key(t)) ?? 0) + 1);
       return m;
     };
+    const items = count((t) => t.sku);
+    if (items.size > 1) {
+      console.log(
+        '  by item: ' +
+          [...items.entries()]
+            .map(([sku, n]) => `${sku} x${n} (${formatRef(ok.filter((t) => t.sku === sku).reduce((s, t) => s + t.profitScrap, 0))})`)
+            .join(', '),
+      );
+    }
     const buyers = count((t) => t.buyer);
     const sellers = count((t) => t.seller);
     const top = [...buyers.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
